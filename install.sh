@@ -60,21 +60,17 @@ mkdir -p /etc/pterodowntimekiller
 mkdir -p /var/log/pterodowntimekiller
 
 echo "📥 Fetching PteroDownTimeKiller codebase..."
-if [ -f "package.json" ] && [ -d "src" ]; then
-  mkdir -p /opt/pterodowntimekiller
-  cp -r ./* /opt/pterodowntimekiller/
-else
-  rm -rf /opt/pterodowntimekiller
-  git clone https://github.com/ANSH9BOSS/PteroDownTimeKiller.git /opt/pterodowntimekiller
-fi
+rm -rf /opt/pterodowntimekiller
+git clone --depth 1 https://github.com/ANSH9BOSS/PteroDownTimeKiller.git /opt/pterodowntimekiller
 
 cd /opt/pterodowntimekiller
-npm install --quiet > /dev/null 2>&1 || true
+echo "📦 Installing daemon dependencies..."
+npm install --quiet > /dev/null 2>&1
 
 # Link CLI tool & set executable
-chmod +x /opt/pterodowntimekiller/bin/pterodowntimekiller
-ln -sf /opt/pterodowntimekiller/bin/pterodowntimekiller /usr/local/bin/pterodowntimekiller
-chmod +x /usr/local/bin/pterodowntimekiller 2>/dev/null || true
+chmod +x /opt/pterodowntimekiller/bin/pterodowntimekiller || true
+rm -f /usr/local/bin/pterodowntimekiller 2>/dev/null || true
+ln -s /opt/pterodowntimekiller/bin/pterodowntimekiller /usr/local/bin/pterodowntimekiller
 
 if [ "$ROLE" == "primary" ]; then
   echo "🚀 Configuring VPS 1 (Primary Node / Panel A)..."

@@ -1,0 +1,8 @@
+node_modules/
+logs/
+snapshots/
+.env
+config.json
+*.log
+/tmp/
+EOF
