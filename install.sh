@@ -67,10 +67,12 @@ cd /opt/pterodowntimekiller
 echo "📦 Installing daemon dependencies..."
 npm install --quiet > /dev/null 2>&1
 
-# Link CLI tool & set executable
-chmod +x /opt/pterodowntimekiller/bin/pterodowntimekiller || true
-rm -f /usr/local/bin/pterodowntimekiller 2>/dev/null || true
-ln -s /opt/pterodowntimekiller/bin/pterodowntimekiller /usr/local/bin/pterodowntimekiller
+# Set permissions on executable binary first
+chmod +x /opt/pterodowntimekiller/bin/pterodowntimekiller 2>/dev/null || true
+
+# Safely clean and recreate system symlink
+unlink /usr/local/bin/pterodowntimekiller 2>/dev/null || rm -rf /usr/local/bin/pterodowntimekiller 2>/dev/null || true
+ln -sf /opt/pterodowntimekiller/bin/pterodowntimekiller /usr/local/bin/pterodowntimekiller
 
 if [ "$ROLE" == "primary" ]; then
   echo "🚀 Configuring VPS 1 (Primary Node / Panel A)..."
