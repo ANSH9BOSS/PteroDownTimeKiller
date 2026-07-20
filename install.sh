@@ -148,13 +148,24 @@ EOF
   systemctl daemon-reload
   systemctl enable --now pterodowntimekiller || true
 
+  # Extract Primary Domain Name
+  PRIMARY_DOMAIN=""
+  if [ -f "/var/www/pterodactyl/.env" ]; then
+    APP_URL=$(grep "^APP_URL=" /var/www/pterodactyl/.env | cut -d'=' -f2- | tr -d '\r' | xargs)
+    PRIMARY_DOMAIN=$(echo "$APP_URL" | awk -F[/:] '{print $4}')
+  fi
+
+  if [ -z "$PRIMARY_DOMAIN" ]; then
+    PRIMARY_DOMAIN="${PUBLIC_IP}"
+  fi
+
   echo ""
   echo "====================================================================="
   echo "✅ Primary Panel A Setup Complete!"
   echo "---------------------------------------------------------------------"
   echo "Copy and paste this EXACT command onto VPS 2 (Fresh Secondary Panel B):"
   echo ""
-  echo "curl -fsSL \"https://raw.githubusercontent.com/ANSH9BOSS/PteroDownTimeKiller/main/install.sh?v=\$(date +%s)\" | sudo bash -s -- --role secondary --peer-ip ${PUBLIC_IP} --secret ${SECRET}"
+  echo "curl -fsSL \"https://raw.githubusercontent.com/ANSH9BOSS/PteroDownTimeKiller/main/install.sh?v=\$(date +%s)\" | sudo bash -s -- --role secondary --peer-ip ${PRIMARY_DOMAIN} --secret ${SECRET}"
   echo "====================================================================="
   echo ""
 
