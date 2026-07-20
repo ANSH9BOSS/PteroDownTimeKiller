@@ -76,6 +76,45 @@ async function main() {
     }
 
     case 'webhook': {
+      if (!subCommand) {
+        const readline = require('readline').createInterface({
+          input: process.stdin,
+          output: process.stdout
+        });
+        readline.question('🔗 Enter your Discord Webhook URL: ', async (url) => {
+          readline.close();
+          const cleanUrl = url.trim();
+          if (!cleanUrl.startsWith('https://discord.com/api/webhooks/')) {
+            console.error('❌ Invalid Discord Webhook URL format. URL must start with: https://discord.com/api/webhooks/');
+            process.exit(1);
+          }
+          
+          // Save to config file
+          const configPath = '/etc/pterodowntimekiller/config.json';
+          try {
+            if (fs.existsSync(configPath)) {
+              const currentConfig = fs.readJsonSync(configPath);
+              currentConfig.discord = currentConfig.discord || {};
+              currentConfig.discord.webhookUrl = cleanUrl;
+              currentConfig.discord.enabled = true;
+              fs.writeJsonSync(configPath, currentConfig, { spaces: 2 });
+              console.log('✅ Discord Webhook URL saved successfully to /etc/pterodowntimekiller/config.json!');
+              
+              // Reload daemon if running
+              const { exec } = require('child_process');
+              exec('systemctl restart pterodowntimekiller', (err) => {
+                if (!err) console.log('🔄 Sync daemon restarted automatically.');
+              });
+            } else {
+              console.error('❌ Config file /etc/pterodowntimekiller/config.json not found. Run install.sh first.');
+            }
+          } catch (err) {
+            console.error(`❌ Failed to write config: ${err.message}`);
+          }
+        });
+        break;
+      }
+
       if (subCommand === 'test') {
         console.log('Sending test Discord Webhook notification...');
         await handleWebhookCommand('status');
@@ -119,6 +158,37 @@ async function main() {
       break;
     }
 
+    case 'config': {
+      console.log('\n--- PteroDownTimeKiller Configuration ---');
+      const cleanConfig = { ...cfg };
+      if (cleanConfig.database) cleanConfig.database.pass = '********';
+      if (cleanConfig.secret) cleanConfig.secret = '********';
+      if (cleanConfig.discord && cleanConfig.discord.webhookUrl) {
+        cleanConfig.discord.webhookUrl = cleanConfig.discord.webhookUrl.substring(0, 45) + '...';
+      }
+      console.log(JSON.stringify(cleanConfig, null, 2));
+      break;
+    }
+
+    case 'restart': {
+      const { execSync } = require('child_process');
+      try {
+        execSync('systemctl restart pterodowntimekiller');
+        console.log('✅ PteroDownTimeKiller daemon restarted successfully.');
+      } catch (err) {
+        console.error(`❌ Failed to restart daemon: ${err.message}`);
+      }
+      break;
+    }
+
+    case 'logs': {
+      const { exec } = require('child_process');
+      exec('tail -n 50 /var/log/pterodowntimekiller/daemon.log 2>/dev/null || tail -n 50 logs/daemon.log', (err, stdout) => {
+        if (!err) console.log(stdout);
+      });
+      break;
+    }
+
     default: {
       console.log(`
 ⚡ PteroDownTimeKiller CLI Management Tool
@@ -126,12 +196,16 @@ async function main() {
 Usage:
   pterodowntimekiller status                 Show live cluster status & peer connection
   pterodowntimekiller verify                 Run cluster domain & Wings verification check
+  pterodowntimekiller webhook                Setup your Discord Webhook URL interactively
+  pterodowntimekiller webhook test           Send a test notification to Discord Webhook
+  pterodowntimekiller webhook send "msg"     Dispatch a custom message to Discord Webhook
   pterodowntimekiller snapshot create        Create an immediate DB & Node snapshot
   pterodowntimekiller snapshot list          List all local and Google Drive snapshots
   pterodowntimekiller gdrive backup          Trigger full offsite backup to Google Drive
   pterodowntimekiller sync-now               Trigger manual synchronization
-  pterodowntimekiller webhook test           Send a test notification to Discord Webhook
-  pterodowntimekiller webhook send "msg"     Dispatch a custom message to Discord Webhook
+  pterodowntimekiller config                 View current daemon configuration
+  pterodowntimekiller restart                Restart the active-active sync daemon
+  pterodowntimekiller logs                   View recent sync event daemon logs
       `);
     }
   }
