@@ -172,18 +172,15 @@ function setupApiRoutes(app) {
     // Fetch peer details
     let peerAppUrl = 'Unknown';
     let peerConnected = false;
-    if (cfg.peer && cfg.peer.host) {
+    const isInternal = req.query.internal === 'true' || req.query.internal === true;
+
+    if (!isInternal && cfg.peer && cfg.peer.host) {
       try {
-        const peerRes = await axios.get(`http://${cfg.peer.host}:${cfg.peer.port}/api/sync/verify-cluster?secret=${cfg.secret}`, { timeout: 5000 });
+        const peerRes = await axios.get(`http://${cfg.peer.host}:${cfg.peer.port}/api/sync/verify-cluster?secret=${cfg.secret}&internal=true`, { timeout: 5000 });
         peerAppUrl = peerRes.data.localAppUrl || 'Unknown';
         peerConnected = true;
       } catch (e) {
-        // Suppress circular request loops
-        if (req.query.internal) {
-          peerAppUrl = 'Loop-Ignored';
-        } else {
-          logger.warn(`Failed to connect to peer verification endpoint: ${e.message}`);
-        }
+        logger.warn(`Failed to connect to peer verification endpoint: ${e.message}`);
       }
     }
 
