@@ -261,6 +261,7 @@ EOF
   fi
 
   systemctl daemon-reload
+  node /opt/pterodowntimekiller/scripts/nginx-patch.js || true
   systemctl enable --now pterodowntimekiller || true
 
   echo ""
