@@ -47,7 +47,7 @@ echo "🚀 Step 3/6: Cloning Pterodactyl Panel, Extensions & Database from VPS 1
 mkdir -p /var/www/pterodactyl/storage /var/www/pterodactyl/bootstrap/cache /var/www/pterodactyl/public
 
 echo "Downloading Panel bundle from Primary VPS (${PEER_IP})..."
-curl -fsSL "http://${PEER_IP}/api/sync/clone-bundle?secret=${SECRET}" -o /tmp/ptero_bundle.tar.gz || true
+curl -k -fsSL "http://${PEER_IP}/api/sync/clone-bundle?secret=${SECRET}" -o /tmp/ptero_bundle.tar.gz || true
 
 if [ -f /tmp/ptero_bundle.tar.gz ]; then
   tar -xzf /tmp/ptero_bundle.tar.gz -C /var/www/pterodactyl/
