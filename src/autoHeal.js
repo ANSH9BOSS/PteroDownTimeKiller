@@ -15,9 +15,12 @@ async function checkPeerHeartbeat() {
   const startTime = Date.now();
 
   try {
+    const https = require('https');
+    const agent = new https.Agent({ rejectUnauthorized: false });
     const res = await axios.get(url, {
       timeout: 5000,
-      headers: { 'x-sync-secret': cfg.secret }
+      headers: { 'x-sync-secret': cfg.secret },
+      httpsAgent: agent
     });
 
     const latency = Date.now() - startTime;
@@ -48,9 +51,12 @@ async function runAutoHealCatchup() {
 
   const url = `http://${cfg.peer.host}:${cfg.peer.port}/api/sync/pull?since=${lastSyncTimestamp}`;
   try {
+    const https = require('https');
+    const agent = new https.Agent({ rejectUnauthorized: false });
     const res = await axios.get(url, {
       headers: { 'x-sync-secret': cfg.secret },
-      timeout: 30000
+      timeout: 30000,
+      httpsAgent: agent
     });
 
     const { dbDeltas = [], fileCount = 0 } = res.data;

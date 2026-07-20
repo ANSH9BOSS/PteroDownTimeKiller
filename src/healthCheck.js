@@ -176,7 +176,12 @@ function setupApiRoutes(app) {
 
     if (!isInternal && cfg.peer && cfg.peer.host) {
       try {
-        const peerRes = await axios.get(`http://${cfg.peer.host}:${cfg.peer.port}/api/sync/verify-cluster?secret=${cfg.secret}&internal=true`, { timeout: 5000 });
+        const https = require('https');
+        const agent = new https.Agent({ rejectUnauthorized: false });
+        const peerRes = await axios.get(`http://${cfg.peer.host}:${cfg.peer.port}/api/sync/verify-cluster?secret=${cfg.secret}&internal=true`, {
+          timeout: 5000,
+          httpsAgent: agent
+        });
         peerAppUrl = peerRes.data.localAppUrl || 'Unknown';
         peerConnected = true;
       } catch (e) {

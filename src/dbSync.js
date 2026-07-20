@@ -47,6 +47,8 @@ async function sendDbChangeToPeer(table, action, recordData) {
 
   const url = `http://${cfg.peer.host}:${cfg.peer.port}/api/sync/push-db`;
   try {
+    const https = require('https');
+    const agent = new https.Agent({ rejectUnauthorized: false });
     await axios.post(
       url,
       {
@@ -59,7 +61,8 @@ async function sendDbChangeToPeer(table, action, recordData) {
         headers: {
           'x-sync-secret': cfg.secret
         },
-        timeout: 10000
+        timeout: 10000,
+        httpsAgent: agent
       }
     );
     logger.debug(`DB change pushed to peer [${table}:${action}]`);
