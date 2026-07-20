@@ -137,6 +137,13 @@ Environment=NODE_ENV=production
 WantedBy=multi-user.target
 EOF
 
+  # Configure Firewall
+  if command -v ufw &> /dev/null; then
+    echo "🔥 Configuring UFW Firewall..."
+    ufw allow 4000/tcp || true
+    ufw allow 51820/udp || true
+  fi
+
   systemctl daemon-reload
   systemctl enable --now pterodowntimekiller || true
 
@@ -203,6 +210,13 @@ Environment=NODE_ENV=production
 [Install]
 WantedBy=multi-user.target
 EOF
+
+  # Configure Firewall
+  if command -v ufw &> /dev/null; then
+    echo "🔥 Configuring UFW Firewall..."
+    ufw allow 4000/tcp || true
+    ufw allow 51820/udp || true
+  fi
 
   systemctl daemon-reload
   systemctl enable --now pterodowntimekiller || true
