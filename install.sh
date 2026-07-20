@@ -205,6 +205,10 @@ else
     DB_PASS=$(grep "^DB_PASSWORD=" /var/www/pterodactyl/.env | cut -d'=' -f2- | tr -d '\r' | xargs 2>/dev/null || echo "pterodactyl_password")
   fi
 
+  # Align MariaDB user password with parsed .env password
+  mysql -e "ALTER USER 'pterodactyl'@'localhost' IDENTIFIED BY '${DB_PASS}';" || true
+  mysql -e "FLUSH PRIVILEGES;" || true
+
   cat << EOF > /etc/pterodowntimekiller/config.json
 {
   "node": {
