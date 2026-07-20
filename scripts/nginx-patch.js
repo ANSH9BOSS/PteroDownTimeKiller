@@ -10,27 +10,11 @@ const CONFIG_PATHS = [
   '/home/ubuntu/pterodactyl.conf' // fallback for dev environment
 ];
 
-function patchNginx() {
-  let patched = false;
+function injectProxyIntoAllServers(content) {
+  let output = '';
+  let index = 0;
 
-  for (const configPath of CONFIG_PATHS) {
-    if (!fs.existsSync(configPath)) continue;
-
-    let content = fs.readFileSync(configPath, 'utf8');
-
-    // Check if proxy location block is already present
-    if (content.includes('location /api/sync/')) {
-      logger.info(`Nginx proxy location block already exists in ${configPath}`);
-      return true;
-    }
-
-    // Find the server block containing /var/www/pterodactyl/public
-    const serverBlockRegex = /server\s*{[^}]+root\s+\/var\/www\/pterodactyl\/public[^}]+}/g;
-    const match = content.match(serverBlockRegex);
-
-    if (match) {
-      const serverBlock = match[0];
-      const proxyBlock = `
+  const proxyBlock = `
     location /api/sync/ {
         proxy_pass http://127.0.0.1:4000;
         proxy_set_header Host $host;
@@ -39,13 +23,69 @@ function patchNginx() {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 `;
-      // Insert the proxy block before the closing brace of the matched server block
-      const lastBraceIndex = serverBlock.lastIndexOf('}');
-      const patchedServerBlock = serverBlock.slice(0, lastBraceIndex) + proxyBlock + serverBlock.slice(lastBraceIndex);
+
+  while (index < content.length) {
+    const serverIndex = content.indexOf('server', index);
+    if (serverIndex === -1) {
+      output += content.slice(index);
+      break;
+    }
+
+    // Find the next opening brace '{'
+    const openBraceIndex = content.indexOf('{', serverIndex);
+    if (openBraceIndex === -1) {
+      output += content.slice(index, serverIndex + 6);
+      index = serverIndex + 6;
+      continue;
+    }
+
+    // Copy everything up to "server"
+    output += content.slice(index, serverIndex);
+
+    // Find matching closing brace '}' for this server block
+    let braceCount = 0;
+    let serverEndIndex = -1;
+    for (let i = openBraceIndex; i < content.length; i++) {
+      if (content[i] === '{') braceCount++;
+      if (content[i] === '}') braceCount--;
+      if (braceCount === 0) {
+        serverEndIndex = i;
+        break;
+      }
+    }
+
+    if (serverEndIndex !== -1) {
+      const serverContent = content.slice(serverIndex, serverEndIndex);
       
-      content = content.replace(serverBlock, patchedServerBlock);
-      fs.writeFileSync(configPath, content, 'utf8');
-      logger.info(`Successfully injected Nginx proxy location block into ${configPath}`);
+      // Inject proxy block only if not already present in this server block
+      let patchedBlock = serverContent;
+      if (!serverContent.includes('location /api/sync/')) {
+        patchedBlock = serverContent + proxyBlock;
+      }
+      output += patchedBlock + '}';
+      index = serverEndIndex + 1;
+    } else {
+      output += content.slice(serverIndex, openBraceIndex + 1);
+      index = openBraceIndex + 1;
+    }
+  }
+
+  return output;
+}
+
+function patchNginx() {
+  let patched = false;
+
+  for (const configPath of CONFIG_PATHS) {
+    if (!fs.existsSync(configPath)) continue;
+
+    let content = fs.readFileSync(configPath, 'utf8');
+
+    // Run brace parsing injection
+    const patchedContent = injectProxyIntoAllServers(content);
+    if (patchedContent !== content) {
+      fs.writeFileSync(configPath, patchedContent, 'utf8');
+      logger.info(`Successfully injected Nginx proxy location blocks into ${configPath}`);
       patched = true;
     }
   }
