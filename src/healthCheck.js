@@ -128,8 +128,8 @@ function setupApiRoutes(app) {
       const dumpCmd = `mysqldump -h "${db.host || '127.0.0.1'}" -P "${db.port || 3306}" -u "${db.user || 'pterodactyl'}" -p"${db.pass || ''}" "${db.name || 'panel'}" > "${dbDumpPath}"`;
       await execAsync(dumpCmd);
 
-      // Create tarball
-      const tarCmd = `tar -czf "${bundlePath}" -C /var/www/pterodactyl . --exclude="node_modules" --exclude="storage/logs/*" --exclude="storage/framework/cache/*" --exclude="storage/framework/views/*" --exclude="storage/framework/sessions/*"`;
+      // Create tarball (excludes must precede the source directory path)
+      const tarCmd = `tar --exclude="node_modules" --exclude="storage/logs/*" --exclude="storage/framework/cache/*" --exclude="storage/framework/views/*" --exclude="storage/framework/sessions/*" -czf "${bundlePath}" -C /var/www/pterodactyl .`;
       await execAsync(tarCmd);
 
       // Send file
