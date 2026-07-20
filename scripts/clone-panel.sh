@@ -118,6 +118,14 @@ echo "🔐 Step 5/6: Setting file permissions and queue worker..."
 chown -R www-data:www-data /var/www/pterodactyl
 chmod -R 755 /var/www/pterodactyl/storage /var/www/pterodactyl/bootstrap/cache || true
 
+# 5.5 Clear Laravel Cache to prevent 500 configuration cache mismatch errors
+cd /var/www/pterodactyl
+php artisan config:clear || true
+php artisan cache:clear || true
+php artisan view:clear || true
+php artisan route:clear || true
+chown -R www-data:www-data /var/www/pterodactyl
+
 cat << 'EOF' > /etc/systemd/system/pteroq.service
 [Unit]
 Description=Pterodactyl Queue Worker
