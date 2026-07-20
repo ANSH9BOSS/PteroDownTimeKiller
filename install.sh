@@ -86,6 +86,21 @@ if [ "$ROLE" == "primary" ]; then
     SECRET=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 32)
   fi
 
+  # Parse database credentials from local Pterodactyl config
+  DB_HOST="127.0.0.1"
+  DB_PORT=3306
+  DB_NAME="panel"
+  DB_USER="pterodactyl"
+  DB_PASS="pterodactyl_password"
+
+  if [ -f "/var/www/pterodactyl/.env" ]; then
+    DB_HOST=$(grep "^DB_HOST=" /var/www/pterodactyl/.env | cut -d'=' -f2- | tr -d '\r' | xargs 2>/dev/null || echo "127.0.0.1")
+    DB_PORT=$(grep "^DB_PORT=" /var/www/pterodactyl/.env | cut -d'=' -f2- | tr -d '\r' | xargs 2>/dev/null || echo "3306")
+    DB_NAME=$(grep "^DB_DATABASE=" /var/www/pterodactyl/.env | cut -d'=' -f2- | tr -d '\r' | xargs 2>/dev/null || echo "panel")
+    DB_USER=$(grep "^DB_USERNAME=" /var/www/pterodactyl/.env | cut -d'=' -f2- | tr -d '\r' | xargs 2>/dev/null || echo "pterodactyl")
+    DB_PASS=$(grep "^DB_PASSWORD=" /var/www/pterodactyl/.env | cut -d'=' -f2- | tr -d '\r' | xargs 2>/dev/null || echo "pterodactyl_password")
+  fi
+
   cat << EOF > /etc/pterodowntimekiller/config.json
 {
   "node": {
@@ -103,11 +118,11 @@ if [ "$ROLE" == "primary" ]; then
     "/var/www/pterodactyl"
   ],
   "database": {
-    "host": "127.0.0.1",
-    "port": 3306,
-    "name": "panel",
-    "user": "pterodactyl",
-    "pass": "pterodactyl_password"
+    "host": "${DB_HOST}",
+    "port": ${DB_PORT},
+    "name": "${DB_NAME}",
+    "user": "${DB_USER}",
+    "pass": "${DB_PASS}"
   },
   "discord": {
     "enabled": true,
@@ -175,6 +190,21 @@ else
   # Invoke automated panel cloner
   bash /opt/pterodowntimekiller/scripts/clone-panel.sh "${PEER_IP}" "${SECRET}"
 
+  # Parse database credentials from cloned local Pterodactyl config
+  DB_HOST="127.0.0.1"
+  DB_PORT=3306
+  DB_NAME="panel"
+  DB_USER="pterodactyl"
+  DB_PASS="pterodactyl_password"
+
+  if [ -f "/var/www/pterodactyl/.env" ]; then
+    DB_HOST=$(grep "^DB_HOST=" /var/www/pterodactyl/.env | cut -d'=' -f2- | tr -d '\r' | xargs 2>/dev/null || echo "127.0.0.1")
+    DB_PORT=$(grep "^DB_PORT=" /var/www/pterodactyl/.env | cut -d'=' -f2- | tr -d '\r' | xargs 2>/dev/null || echo "3306")
+    DB_NAME=$(grep "^DB_DATABASE=" /var/www/pterodactyl/.env | cut -d'=' -f2- | tr -d '\r' | xargs 2>/dev/null || echo "panel")
+    DB_USER=$(grep "^DB_USERNAME=" /var/www/pterodactyl/.env | cut -d'=' -f2- | tr -d '\r' | xargs 2>/dev/null || echo "pterodactyl")
+    DB_PASS=$(grep "^DB_PASSWORD=" /var/www/pterodactyl/.env | cut -d'=' -f2- | tr -d '\r' | xargs 2>/dev/null || echo "pterodactyl_password")
+  fi
+
   cat << EOF > /etc/pterodowntimekiller/config.json
 {
   "node": {
@@ -192,11 +222,11 @@ else
     "/var/www/pterodactyl"
   ],
   "database": {
-    "host": "127.0.0.1",
-    "port": 3306,
-    "name": "panel",
-    "user": "pterodactyl",
-    "pass": "pterodactyl_password"
+    "host": "${DB_HOST}",
+    "port": ${DB_PORT},
+    "name": "${DB_NAME}",
+    "user": "${DB_USER}",
+    "pass": "${DB_PASS}"
   },
   "discord": {
     "enabled": true,
