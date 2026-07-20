@@ -164,7 +164,7 @@ function setupApiRoutes(app) {
     try {
       const envContent = await fs.readFile('/var/www/pterodactyl/.env', 'utf8');
       const match = envContent.match(/^APP_URL=(.+)$/m);
-      if (match) localAppUrl = match[1].trim();
+      if (match) localAppUrl = match[1].replace(/['"]/g, '').trim();
     } catch (e) {
       logger.warn(`Could not read Pterodactyl .env: ${e.message}`);
     }
