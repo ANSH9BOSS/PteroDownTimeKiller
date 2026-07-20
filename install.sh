@@ -43,7 +43,12 @@ fi
 # Detect Public IP
 PUBLIC_IP=$(curl -fsSL https://api.ipify.org || echo "127.0.0.1")
 
-# Install Node.js 20 LTS if missing
+# Install Node.js & Git if missing
+if ! command -v git &> /dev/null; then
+  echo "📦 Installing Git..."
+  apt-get update -qq && apt-get install -y -qq git > /dev/null 2>&1
+fi
+
 if ! command -v node &> /dev/null; then
   echo "📦 Installing Node.js 20 LTS..."
   curl -fsSL https://deb.nodesource.com/setup_20.x | bash - > /dev/null 2>&1
@@ -53,16 +58,23 @@ fi
 # Create daemon directory & user config
 mkdir -p /etc/pterodowntimekiller
 mkdir -p /var/log/pterodowntimekiller
-mkdir -p /opt/pterodowntimekiller
 
-# Copy daemon files
-cp -r src config scripts package.json bin /opt/pterodowntimekiller/ 2>/dev/null || true
+echo "📥 Fetching PteroDownTimeKiller codebase..."
+if [ -f "package.json" ] && [ -d "src" ]; then
+  mkdir -p /opt/pterodowntimekiller
+  cp -r ./* /opt/pterodowntimekiller/
+else
+  rm -rf /opt/pterodowntimekiller
+  git clone https://github.com/ANSH9BOSS/PteroDownTimeKiller.git /opt/pterodowntimekiller
+fi
+
 cd /opt/pterodowntimekiller
 npm install --quiet > /dev/null 2>&1 || true
 
-# Link CLI tool
+# Link CLI tool & set executable
+chmod +x /opt/pterodowntimekiller/bin/pterodowntimekiller
 ln -sf /opt/pterodowntimekiller/bin/pterodowntimekiller /usr/local/bin/pterodowntimekiller
-chmod +x /usr/local/bin/pterodowntimekiller
+chmod +x /usr/local/bin/pterodowntimekiller 2>/dev/null || true
 
 if [ "$ROLE" == "primary" ]; then
   echo "🚀 Configuring VPS 1 (Primary Node / Panel A)..."
