@@ -158,6 +158,35 @@ async function main() {
       break;
     }
 
+    case 'peer': {
+      const peerHost = subCommand;
+      const peerPort = args[2] ? parseInt(args[2], 10) : 80;
+      if (!peerHost) {
+        console.error('Usage: pterodowntimekiller peer <ip/domain> [port]');
+        break;
+      }
+      const configPath = '/etc/pterodowntimekiller/config.json';
+      try {
+        if (fs.existsSync(configPath)) {
+          const currentConfig = fs.readJsonSync(configPath);
+          currentConfig.peer = currentConfig.peer || {};
+          currentConfig.peer.host = peerHost;
+          currentConfig.peer.port = peerPort;
+          fs.writeJsonSync(configPath, currentConfig, { spaces: 2 });
+          console.log(`✅ Configured peer connection to: ${peerHost}:${peerPort}`);
+          const { exec } = require('child_process');
+          exec('systemctl restart pterodowntimekiller', (err) => {
+            if (!err) console.log('🔄 Sync daemon restarted automatically.');
+          });
+        } else {
+          console.error('❌ Configuration file not found.');
+        }
+      } catch (err) {
+        console.error(`❌ Failed to update config: ${err.message}`);
+      }
+      break;
+    }
+
     case 'config': {
       console.log('\n--- PteroDownTimeKiller Configuration ---');
       const cleanConfig = { ...cfg };
@@ -203,6 +232,7 @@ Usage:
   pterodowntimekiller snapshot list          List all local and Google Drive snapshots
   pterodowntimekiller gdrive backup          Trigger full offsite backup to Google Drive
   pterodowntimekiller sync-now               Trigger manual synchronization
+  pterodowntimekiller peer <ip/domain> [port] Configure target peer connection (default port: 80)
   pterodowntimekiller config                 View current daemon configuration
   pterodowntimekiller restart                Restart the active-active sync daemon
   pterodowntimekiller logs                   View recent sync event daemon logs
