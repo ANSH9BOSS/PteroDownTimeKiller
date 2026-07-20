@@ -15,14 +15,14 @@
 Run this command on your **existing Pterodactyl Panel VPS**:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ANSH9BOSS/PteroDownTimeKiller/main/install.sh | sudo bash -s -- --role primary
+curl -fsSL "https://raw.githubusercontent.com/ANSH9BOSS/PteroDownTimeKiller/main/install.sh?v=$(date +%s)" | sudo bash -s -- --role primary
 ```
 
 ### Step 2: Run Auto-Generated Command on Secondary VPS (Fresh Panel B)
 At the end of Step 1, the installer will print a **custom 1-line command**. Run that command on a **clean fresh Ubuntu VPS 2**:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ANSH9BOSS/PteroDownTimeKiller/main/install.sh | sudo bash -s -- --role secondary --peer-ip 1.2.3.4 --secret YOUR_SECRET_HERE
+curl -fsSL "https://raw.githubusercontent.com/ANSH9BOSS/PteroDownTimeKiller/main/install.sh?v=$(date +%s)" | sudo bash -s -- --role secondary --peer-ip 1.2.3.4 --secret YOUR_SECRET_HERE
 ```
 
 ✨ **Zero-Install Panel Cloning**: VPS 2 automatically installs Nginx, MariaDB, PHP 8.2/8.3, clones your entire Pterodactyl Panel (files, custom themes, extensions, eggs, users & MySQL database), configures Nginx, and connects active-active synchronization!

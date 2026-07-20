@@ -34,6 +34,10 @@ echo "====================================================================="
 echo "⚡ PteroDownTimeKiller - Active-Active Failover System Installer"
 echo "====================================================================="
 
+# Clean any existing dangling symlinks safely
+rm -rf /usr/local/bin/pterodowntimekiller 2>/dev/null || true
+unlink /usr/local/bin/pterodowntimekiller 2>/dev/null || true
+
 # Check root
 if [ "$EUID" -ne 0 ]; then
   echo "❌ Error: Please run install.sh as root (sudo)."
@@ -67,12 +71,13 @@ cd /opt/pterodowntimekiller
 echo "📦 Installing daemon dependencies..."
 npm install --quiet > /dev/null 2>&1
 
-# Set permissions on executable binary first
+# Set permissions on executable binary
 chmod +x /opt/pterodowntimekiller/bin/pterodowntimekiller 2>/dev/null || true
 
-# Safely clean and recreate system symlink
-unlink /usr/local/bin/pterodowntimekiller 2>/dev/null || rm -rf /usr/local/bin/pterodowntimekiller 2>/dev/null || true
+# Safely recreate system symlink
+rm -rf /usr/local/bin/pterodowntimekiller 2>/dev/null || true
 ln -sf /opt/pterodowntimekiller/bin/pterodowntimekiller /usr/local/bin/pterodowntimekiller
+chmod +x /usr/local/bin/pterodowntimekiller 2>/dev/null || true
 
 if [ "$ROLE" == "primary" ]; then
   echo "🚀 Configuring VPS 1 (Primary Node / Panel A)..."
@@ -141,7 +146,7 @@ EOF
   echo "---------------------------------------------------------------------"
   echo "Copy and paste this EXACT command onto VPS 2 (Fresh Secondary Panel B):"
   echo ""
-  echo "curl -fsSL https://raw.githubusercontent.com/ANSH9BOSS/PteroDownTimeKiller/main/install.sh | sudo bash -s -- --role secondary --peer-ip ${PUBLIC_IP} --secret ${SECRET}"
+  echo "curl -fsSL \"https://raw.githubusercontent.com/ANSH9BOSS/PteroDownTimeKiller/main/install.sh?v=\$(date +%s)\" | sudo bash -s -- --role secondary --peer-ip ${PUBLIC_IP} --secret ${SECRET}"
   echo "====================================================================="
   echo ""
 
