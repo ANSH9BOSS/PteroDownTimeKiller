@@ -5,6 +5,7 @@ ROLE="primary"
 PEER_IP=""
 SECRET=""
 WG_PUBKEY=""
+GITHUB_TOKEN=""
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -18,6 +19,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --secret)
       SECRET="$2"
+      shift 2
+      ;;
+    --token)
+      GITHUB_TOKEN="$2"
       shift 2
       ;;
     --wg-peer-pubkey)
@@ -56,9 +61,9 @@ mkdir -p /var/log/pterodowntimekiller
 mkdir -p /opt/pterodowntimekiller
 
 # Copy daemon files
-cp -r src config scripts package.json bin /opt/pterodowntimekiller/
+cp -r src config scripts package.json bin /opt/pterodowntimekiller/ 2>/dev/null || true
 cd /opt/pterodowntimekiller
-npm install --quiet > /dev/null 2>&1
+npm install --quiet > /dev/null 2>&1 || true
 
 # Link CLI tool
 ln -sf /opt/pterodowntimekiller/bin/pterodowntimekiller /usr/local/bin/pterodowntimekiller
@@ -123,7 +128,7 @@ WantedBy=multi-user.target
 EOF
 
   systemctl daemon-reload
-  systemctl enable --now pterodowntimekiller
+  systemctl enable --now pterodowntimekiller || true
 
   echo ""
   echo "====================================================================="
@@ -131,7 +136,11 @@ EOF
   echo "---------------------------------------------------------------------"
   echo "Copy and paste this EXACT command onto VPS 2 (Fresh Secondary Panel B):"
   echo ""
-  echo "curl -fsSL https://raw.githubusercontent.com/PteroDownTimeKiller/main/install.sh | sudo bash -s -- --role secondary --peer-ip ${PUBLIC_IP} --secret ${SECRET}"
+  if [ -n "$GITHUB_TOKEN" ]; then
+    echo "curl -fsSL -H \"Authorization: token ${GITHUB_TOKEN}\" https://raw.githubusercontent.com/ANSH9BOSS/PteroDownTimeKiller/main/install.sh | sudo bash -s -- --role secondary --peer-ip ${PUBLIC_IP} --secret ${SECRET} --token ${GITHUB_TOKEN}"
+  else
+    echo "curl -fsSL -H \"Authorization: token YOUR_GITHUB_TOKEN\" https://raw.githubusercontent.com/ANSH9BOSS/PteroDownTimeKiller/main/install.sh | sudo bash -s -- --role secondary --peer-ip ${PUBLIC_IP} --secret ${SECRET}"
+  fi
   echo "====================================================================="
   echo ""
 
@@ -190,7 +199,7 @@ WantedBy=multi-user.target
 EOF
 
   systemctl daemon-reload
-  systemctl enable --now pterodowntimekiller
+  systemctl enable --now pterodowntimekiller || true
 
   echo ""
   echo "====================================================================="

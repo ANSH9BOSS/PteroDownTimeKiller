@@ -9,21 +9,17 @@
 
 ---
 
-## 🚀 Quick Start (1-Command Installation)
+## 🚀 Quick Start (Private Repository Installation)
 
-### Step 1: Run on Primary VPS (Panel A)
-Run this command on your **existing Pterodactyl Panel VPS**:
+Since this repository is **private**, pass your GitHub token header with `curl`:
 
+### Step 1: Run on Primary VPS (Panel A - Existing Panel)
 ```bash
-curl -fsSL https://raw.githubusercontent.com/PteroDownTimeKiller/main/install.sh | sudo bash -s -- --role primary
+curl -fsSL -H "Authorization: token YOUR_GITHUB_TOKEN" https://raw.githubusercontent.com/ANSH9BOSS/PteroDownTimeKiller/main/install.sh | sudo bash -s -- --role primary --token YOUR_GITHUB_TOKEN
 ```
 
 ### Step 2: Run Auto-Generated Command on Secondary VPS (Fresh Panel B)
-At the end of Step 1, the installer will print a **custom 1-line command**. Run that command on a **clean fresh Ubuntu VPS 2**:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/PteroDownTimeKiller/main/install.sh | sudo bash -s -- --role secondary --peer-ip 1.2.3.4 --secret YOUR_SECRET_HERE
-```
+The installer will print the exact pre-configured 1-line command for VPS 2! Simply copy and paste it into a **fresh clean Ubuntu VPS 2**.
 
 ✨ **Zero-Install Panel Cloning**: VPS 2 automatically installs Nginx, MariaDB, PHP 8.2/8.3, clones your entire Pterodactyl Panel (files, custom themes, extensions, eggs, users & MySQL database), configures Nginx, and connects active-active synchronization!
 
