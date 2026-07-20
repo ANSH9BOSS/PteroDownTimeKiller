@@ -1,0 +1,34 @@
+{
+  "node": {
+    "id": "panel-a",
+    "port": 4000,
+    "publicIp": "1.2.3.4",
+    "wireguardIp": "10.0.0.1"
+  },
+  "peer": {
+    "host": "10.0.0.2",
+    "port": 4000
+  },
+  "secret": "shared-auth-token-change-me",
+  "watch": [
+    "/var/www/pterodactyl"
+  ],
+  "database": {
+    "host": "127.0.0.1",
+    "port": 3306,
+    "name": "panel",
+    "user": "pterodactyl",
+    "pass": "db-password-here"
+  },
+  "discord": {
+    "enabled": true,
+    "webhookUrl": "https://discord.com/api/webhooks/your-webhook-id/your-webhook-token",
+    "botToken": "",
+    "channelId": ""
+  },
+  "gdrive": {
+    "enabled": false,
+    "folderId": "",
+    "credentialsPath": "/etc/pterodowntimekiller/gdrive-credentials.json"
+  }
+}

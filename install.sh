@@ -1,0 +1,199 @@
+#!/usr/bin/env bash
+set -e
+
+ROLE="primary"
+PEER_IP=""
+SECRET=""
+WG_PUBKEY=""
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --role)
+      ROLE="$2"
+      shift 2
+      ;;
+    --peer-ip)
+      PEER_IP="$2"
+      shift 2
+      ;;
+    --secret)
+      SECRET="$2"
+      shift 2
+      ;;
+    --wg-peer-pubkey)
+      WG_PUBKEY="$2"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
+echo "====================================================================="
+echo "⚡ PteroDownTimeKiller - Active-Active Failover System Installer"
+echo "====================================================================="
+
+# Check root
+if [ "$EUID" -ne 0 ]; then
+  echo "❌ Error: Please run install.sh as root (sudo)."
+  exit 1
+fi
+
+# Detect Public IP
+PUBLIC_IP=$(curl -fsSL https://api.ipify.org || echo "127.0.0.1")
+
+# Install Node.js 20 LTS if missing
+if ! command -v node &> /dev/null; then
+  echo "📦 Installing Node.js 20 LTS..."
+  curl -fsSL https://deb.nodesource.com/setup_20.x | bash - > /dev/null 2>&1
+  apt-get install -y -qq nodejs > /dev/null 2>&1
+fi
+
+# Create daemon directory & user config
+mkdir -p /etc/pterodowntimekiller
+mkdir -p /var/log/pterodowntimekiller
+mkdir -p /opt/pterodowntimekiller
+
+# Copy daemon files
+cp -r src config scripts package.json bin /opt/pterodowntimekiller/
+cd /opt/pterodowntimekiller
+npm install --quiet > /dev/null 2>&1
+
+# Link CLI tool
+ln -sf /opt/pterodowntimekiller/bin/pterodowntimekiller /usr/local/bin/pterodowntimekiller
+chmod +x /usr/local/bin/pterodowntimekiller
+
+if [ "$ROLE" == "primary" ]; then
+  echo "🚀 Configuring VPS 1 (Primary Node / Panel A)..."
+  
+  if [ -z "$SECRET" ]; then
+    SECRET=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 32)
+  fi
+
+  cat << EOF > /etc/pterodowntimekiller/config.json
+{
+  "node": {
+    "id": "panel-a",
+    "port": 4000,
+    "publicIp": "${PUBLIC_IP}",
+    "wireguardIp": "10.0.0.1"
+  },
+  "peer": {
+    "host": "10.0.0.2",
+    "port": 4000
+  },
+  "secret": "${SECRET}",
+  "watch": [
+    "/var/www/pterodactyl"
+  ],
+  "database": {
+    "host": "127.0.0.1",
+    "port": 3306,
+    "name": "panel",
+    "user": "pterodactyl",
+    "pass": "pterodactyl_password"
+  },
+  "discord": {
+    "enabled": true,
+    "webhookUrl": ""
+  }
+}
+EOF
+
+  node /opt/pterodowntimekiller/scripts/mysql-tuning.js || true
+
+  # Systemd service
+  cat << EOF > /etc/systemd/system/pterodowntimekiller.service
+[Unit]
+Description=PteroDownTimeKiller Active-Active Failover Daemon
+After=network.target mariadb.service nginx.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/pterodowntimekiller
+ExecStart=/usr/bin/node src/index.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  systemctl daemon-reload
+  systemctl enable --now pterodowntimekiller
+
+  echo ""
+  echo "====================================================================="
+  echo "✅ Primary Panel A Setup Complete!"
+  echo "---------------------------------------------------------------------"
+  echo "Copy and paste this EXACT command onto VPS 2 (Fresh Secondary Panel B):"
+  echo ""
+  echo "curl -fsSL https://raw.githubusercontent.com/PteroDownTimeKiller/main/install.sh | sudo bash -s -- --role secondary --peer-ip ${PUBLIC_IP} --secret ${SECRET}"
+  echo "====================================================================="
+  echo ""
+
+else
+  echo "🚀 Configuring VPS 2 (Secondary Node / Zero-Install Panel B)..."
+
+  # Invoke automated panel cloner
+  bash /opt/pterodowntimekiller/scripts/clone-panel.sh "${PEER_IP}" "${SECRET}"
+
+  cat << EOF > /etc/pterodowntimekiller/config.json
+{
+  "node": {
+    "id": "panel-b",
+    "port": 4000,
+    "publicIp": "${PUBLIC_IP}",
+    "wireguardIp": "10.0.0.2"
+  },
+  "peer": {
+    "host": "10.0.0.1",
+    "port": 4000
+  },
+  "secret": "${SECRET}",
+  "watch": [
+    "/var/www/pterodactyl"
+  ],
+  "database": {
+    "host": "127.0.0.1",
+    "port": 3306,
+    "name": "panel",
+    "user": "pterodactyl",
+    "pass": "pterodactyl_password"
+  },
+  "discord": {
+    "enabled": true,
+    "webhookUrl": ""
+  }
+}
+EOF
+
+  cat << EOF > /etc/systemd/system/pterodowntimekiller.service
+[Unit]
+Description=PteroDownTimeKiller Active-Active Failover Daemon
+After=network.target mariadb.service nginx.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/pterodowntimekiller
+ExecStart=/usr/bin/node src/index.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  systemctl daemon-reload
+  systemctl enable --now pterodowntimekiller
+
+  echo ""
+  echo "====================================================================="
+  echo "🎉 CONGRATULATIONS! Panel B is Live and Synced with Panel A!"
+  echo "====================================================================="
+fi

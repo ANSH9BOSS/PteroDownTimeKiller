@@ -1,0 +1,115 @@
+#!/usr/bin/env node
+
+const axios = require('axios');
+const path = require('path');
+const fs = require('fs-extra');
+const { getConfig } = require('../src/config');
+const { createSnapshot, listSnapshots } = require('../src/snapshotEngine');
+const { performGDriveBackup } = require('../src/gdrive');
+const { handleDiscordCommand } = require('../src/discordBot');
+
+const args = process.argv.slice(2);
+const command = args[0];
+const subCommand = args[1];
+
+async function main() {
+  const cfg = getConfig();
+
+  switch (command) {
+    case 'status': {
+      console.log('\n=====================================================');
+      console.log('⚡ PteroDownTimeKiller - Cluster Status');
+      console.log('=====================================================');
+      console.log(`Local Node ID : ${cfg.node?.id || 'panel-a'}`);
+      console.log(`Local IP / WG : ${cfg.node?.wireguardIp || '10.0.0.1'}`);
+      console.log(`Peer Address  : ${cfg.peer?.host || '10.0.0.2'}:${cfg.peer?.port || 4000}`);
+      console.log(`Daemon Port   : ${cfg.node?.port || 4000}`);
+      console.log('=====================================================\n');
+
+      try {
+        const res = await axios.get(`http://127.0.0.1:${cfg.node?.port || 4000}/api/sync/status`);
+        console.log('Daemon Status : ONLINE (200 OK)');
+        console.log(`Peer Status   : ${res.data.peerConnected ? 'CONNECTED' : 'OFFLINE'}`);
+        if (res.data.latencyMs) console.log(`Peer Latency  : ${res.data.latencyMs} ms`);
+      } catch (err) {
+        console.log('Daemon Status : OFFLINE / UNREACHABLE');
+      }
+      break;
+    }
+
+    case 'snapshot': {
+      if (subCommand === 'create') {
+        console.log('Creating database snapshot...');
+        const res = await createSnapshot('cli_user');
+        if (res.success) {
+          console.log(`✅ Snapshot created: ${res.snapshotName} (${res.fileSize})`);
+        } else {
+          console.error(`❌ Snapshot failed: ${res.error}`);
+        }
+      } else if (subCommand === 'list') {
+        const snapshots = await listSnapshots();
+        console.log('\n--- Local & GDrive Snapshots ---');
+        snapshots.forEach((s) => console.log(`• ${s.name} (${s.size})`));
+      } else {
+        console.log('Usage: pterodowntimekiller snapshot [create|list]');
+      }
+      break;
+    }
+
+    case 'gdrive':
+    case 'backup': {
+      console.log('Initiating Google Drive backup...');
+      const res = await performGDriveBackup();
+      if (res.success) {
+        console.log(`✅ Google Drive Backup Complete: ${res.archiveName} (${res.fileSize})`);
+      } else {
+        console.error(`❌ Backup failed: ${res.error}`);
+      }
+      break;
+    }
+
+    case 'sync-now': {
+      console.log('Triggering manual re-sync cycle...');
+      await handleDiscordCommand('sync-now');
+      console.log('✅ Re-sync triggered.');
+      break;
+    }
+
+    case 'webhook': {
+      if (subCommand === 'test') {
+        console.log('Sending test Discord Webhook notification...');
+        await handleDiscordCommand('status');
+        console.log('✅ Test webhook sent.');
+      } else if (subCommand === 'send') {
+        const msg = args.slice(2).join(' ');
+        if (!msg) {
+          console.error('Please specify message text: pterodowntimekiller webhook send "your message"');
+          break;
+        }
+        const { sendDiscordWebhook } = require('../src/webhooks');
+        await sendDiscordWebhook('📢 ADMIN MESSAGE', msg, 0x3b82f6);
+        console.log('✅ Message dispatched to Discord Webhook.');
+      } else {
+        console.log('Usage: pterodowntimekiller webhook [test|send "message"]');
+      }
+      break;
+    }
+
+    default: {
+      console.log(`
+⚡ PteroDownTimeKiller CLI Management Tool
+
+Usage:
+  pterodowntimekiller status                 Show live cluster status & peer connection
+  pterodowntimekiller snapshot create        Create an immediate DB & Node snapshot
+  pterodowntimekiller snapshot list          List all local and Google Drive snapshots
+  pterodowntimekiller gdrive backup          Trigger full offsite backup to Google Drive
+  pterodowntimekiller sync-now               Trigger manual synchronization
+  pterodowntimekiller webhook test           Send a test notification to Discord Webhook
+  pterodowntimekiller webhook send "msg"     Dispatch a custom message to Discord Webhook
+      `);
+    }
+  }
+}
+
+main().catch(console.error);

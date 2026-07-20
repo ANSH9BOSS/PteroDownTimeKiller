@@ -1,0 +1,31 @@
+{
+  "name": "pterodowntimekiller",
+  "version": "1.0.0",
+  "description": "Active-Active Failover System for Pterodactyl Panels with Zero-Downtime Sync, Zero-Install Secondary Cloning, Discord Bot & Google Drive Storage",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node test/test_sync.js"
+  },
+  "keywords": [
+    "pterodactyl",
+    "failover",
+    "high-availability",
+    "active-active",
+    "realtime-sync",
+    "wireguard",
+    "cloudflare"
+  ],
+  "author": "Antigravity Team",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.8",
+    "chokidar": "^3.6.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "form-data": "^4.0.0",
+    "fs-extra": "^11.2.0",
+    "mysql2": "^3.9.7",
+    "winston": "^3.13.0"
+  }
+}
