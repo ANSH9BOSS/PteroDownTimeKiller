@@ -117,6 +117,7 @@ if [ "$ROLE" == "primary" ]; then
 EOF
 
   node /opt/pterodowntimekiller/scripts/mysql-tuning.js || true
+  node /opt/pterodowntimekiller/scripts/nginx-patch.js || true
 
   # Systemd service
   cat << EOF > /etc/systemd/system/pterodowntimekiller.service
