@@ -41,6 +41,7 @@ auto_increment_offset = 2
 bind-address = 0.0.0.0
 EOF
 systemctl restart mariadb
+systemctl enable --now redis-server || true
 
 # 3. Download & Unpack Pterodactyl Panel Archive from VPS 1
 echo "🚀 Step 3/6: Cloning Pterodactyl Panel, Extensions & Database from VPS 1..."
