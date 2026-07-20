@@ -77,10 +77,34 @@ async function handleDiscordCommand(commandStr, args = []) {
       );
     }
 
+    case 'verify':
+    case '!ptero verify':
+    case '/verify': {
+      try {
+        const verifyRes = await axios.get(`http://127.0.0.1:${cfg.node?.port || 4000}/api/sync/verify-cluster?secret=${cfg.secret}&internal=true`);
+        const { localAppUrl, peerAppUrl, urlsMatch, nodes = [] } = verifyRes.data;
+        const nodeStatusList = nodes.map(n => `• **${n.name}** (${n.fqdn}): ${n.isHealthy ? '🟢 Connected' : '🔴 Unreachable'}`).join('\n') || 'No nodes configured.';
+
+        return sendDiscordWebhook(
+          '🔍 CLUSTER VERIFICATION REPORT',
+          `PteroDownTimeKiller Verification status check.`,
+          urlsMatch ? 0x22c55e : 0xef4444,
+          [
+            { name: 'Local App URL', value: `\`${localAppUrl}\``, inline: true },
+            { name: 'Peer App URL', value: `\`${peerAppUrl}\``, inline: true },
+            { name: 'Unified URL Match', value: urlsMatch ? '✅ MATCHING' : '❌ MISMATCH / MISCONFIGURED', inline: false },
+            { name: 'Wings Nodes Connection', value: nodeStatusList, inline: false }
+          ]
+        );
+      } catch (err) {
+        return sendDiscordWebhook('❌ VERIFICATION FAILED', `Error executing verification: ${err.message}`, 0xef4444);
+      }
+    }
+
     default: {
       return sendDiscordWebhook(
         '❓ UNKNOWN DISCORD COMMAND',
-        `Available Discord Commands:\n• \`!ptero status\`\n• \`!ptero snapshot create\`\n• \`!ptero snapshot list\`\n• \`!ptero gdrive backup\`\n• \`!ptero sync-now\``,
+        `Available Discord Commands:\n• \`!ptero status\`\n• \`!ptero verify\`\n• \`!ptero snapshot create\`\n• \`!ptero snapshot list\`\n• \`!ptero gdrive backup\`\n• \`!ptero sync-now\``,
         0xf97316
       );
     }

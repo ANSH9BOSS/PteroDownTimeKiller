@@ -95,12 +95,37 @@ async function main() {
       break;
     }
 
+    case 'verify': {
+      console.log('\n=====================================================');
+      console.log('⚡ PteroDownTimeKiller - Cluster Verification Check');
+      console.log('=====================================================');
+      try {
+        const res = await axios.get(`http://127.0.0.1:${cfg.node?.port || 4000}/api/sync/verify-cluster?secret=${cfg.secret}`);
+        console.log(`Local Panel URL  : ${res.data.localAppUrl}`);
+        console.log(`Peer Panel URL   : ${res.data.peerAppUrl}`);
+        console.log(`URL Configurations Match: ${res.data.urlsMatch ? '✅ MATCHING (Perfect active-active setup!)' : '❌ MISMATCH (Action Required: Ensure APP_URL matches on both panels!)'}`);
+        console.log('\n--- Wings Nodes Connection Check ---');
+        if (res.data.nodes && res.data.nodes.length > 0) {
+          res.data.nodes.forEach(n => {
+            console.log(`• Node [${n.id}] ${n.name} (${n.fqdn}:${n.port}) -> ${n.isHealthy ? '🟢 Connected & Online' : '🔴 Connection Failed / Offline'}`);
+          });
+        } else {
+          console.log('No Wings nodes configured in this Pterodactyl cluster yet.');
+        }
+      } catch (err) {
+        console.error(`❌ Failed to run verification diagnostics: ${err.message}`);
+      }
+      console.log('=====================================================\n');
+      break;
+    }
+
     default: {
       console.log(`
 ⚡ PteroDownTimeKiller CLI Management Tool
 
 Usage:
   pterodowntimekiller status                 Show live cluster status & peer connection
+  pterodowntimekiller verify                 Run cluster domain & Wings verification check
   pterodowntimekiller snapshot create        Create an immediate DB & Node snapshot
   pterodowntimekiller snapshot list          List all local and Google Drive snapshots
   pterodowntimekiller gdrive backup          Trigger full offsite backup to Google Drive

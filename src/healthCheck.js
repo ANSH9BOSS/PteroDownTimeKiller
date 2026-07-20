@@ -151,6 +151,97 @@ function setupApiRoutes(app) {
       res.status(500).json({ error: `Failed to compile clone bundle: ${err.message}` });
     }
   });
+
+  // 10. Cluster Verification Check (Unified URL & Node Connections)
+  app.get('/api/sync/verify-cluster', authMiddleware, async (req, res) => {
+    const fs = require('fs-extra');
+    const axios = require('axios');
+    const { getDbPool } = require('./dbSync');
+    const { sendDiscordWebhook } = require('./webhooks');
+    const cfg = getConfig();
+
+    let localAppUrl = 'Unknown';
+    try {
+      const envContent = await fs.readFile('/var/www/pterodactyl/.env', 'utf8');
+      const match = envContent.match(/^APP_URL=(.+)$/m);
+      if (match) localAppUrl = match[1].trim();
+    } catch (e) {
+      logger.warn(`Could not read Pterodactyl .env: ${e.message}`);
+    }
+
+    // Fetch peer details
+    let peerAppUrl = 'Unknown';
+    let peerConnected = false;
+    if (cfg.peer && cfg.peer.host) {
+      try {
+        const peerRes = await axios.get(`http://${cfg.peer.host}:${cfg.peer.port}/api/sync/verify-cluster?secret=${cfg.secret}`, { timeout: 5000 });
+        peerAppUrl = peerRes.data.localAppUrl || 'Unknown';
+        peerConnected = true;
+      } catch (e) {
+        // Suppress circular request loops
+        if (req.query.internal) {
+          peerAppUrl = 'Loop-Ignored';
+        } else {
+          logger.warn(`Failed to connect to peer verification endpoint: ${e.message}`);
+        }
+      }
+    }
+
+    const urlsMatch = localAppUrl === peerAppUrl;
+
+    // Check registered Wings nodes status in database
+    const nodes = [];
+    try {
+      const dbPool = getDbPool();
+      const [rows] = await dbPool.query('SELECT id, name, fqdn, daemonListen FROM nodes');
+      for (const row of rows) {
+        // Quick connection ping to verify Wings is listening & configured
+        let isHealthy = false;
+        try {
+          const wingsUrl = `https://${row.fqdn}:${row.daemonListen}/api/system/time`;
+          await axios.get(wingsUrl, { timeout: 2000 });
+          isHealthy = true;
+        } catch (err) {
+          // Fallback if HTTP ping fails or cert is self-signed
+          isHealthy = err.code !== 'ECONNREFUSED';
+        }
+        nodes.push({
+          id: row.id,
+          name: row.name,
+          fqdn: row.fqdn,
+          port: row.daemonListen,
+          isHealthy
+        });
+      }
+    } catch (e) {
+      logger.warn(`Database verification fetch failed: ${e.message}`);
+    }
+
+    const result = {
+      localAppUrl,
+      peerAppUrl,
+      urlsMatch,
+      nodes
+    };
+
+    // Dispatch detailed report to Discord
+    if (!req.query.internal) {
+      const nodeStatusList = nodes.map(n => `• **${n.name}** (${n.fqdn}): ${n.isHealthy ? '🟢 Connected' : '🔴 Unreachable'}`).join('\n') || 'No nodes configured.';
+      await sendDiscordWebhook(
+        '🔍 CLUSTER VERIFICATION REPORT',
+        `PteroDownTimeKiller Verification status check.`,
+        urlsMatch ? 0x22c55e : 0xef4444,
+        [
+          { name: 'Local App URL', value: `\`${localAppUrl}\``, inline: true },
+          { name: 'Peer App URL', value: `\`${peerAppUrl}\``, inline: true },
+          { name: 'Unified URL Match', value: urlsMatch ? '✅ MATCHING' : '❌ MISMATCH / MISCONFIGURED', inline: false },
+          { name: 'Wings Nodes Connection', value: nodeStatusList, inline: false }
+        ]
+      );
+    }
+
+    return res.status(200).json(result);
+  });
 }
 
 module.exports = {
