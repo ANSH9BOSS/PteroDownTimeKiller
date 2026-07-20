@@ -22,6 +22,10 @@ add-apt-repository -y ppa:ondrej/php > /dev/null 2>&1 || true
 apt-get update -qq
 apt-get install -y -qq php8.2 php8.2-cli php8.2-gd php8.2-mysql php8.2-pth php8.2-mbstring php8.2-bcmath php8.2-xml php8.2-curl php8.2-zip php8.2-intl php8.2-redis > /dev/null 2>&1 || true
 
+# Auto-detect PHP version
+PHP_VERSION=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;" 2>/dev/null || echo "8.2")
+echo "ℹ️ Detected PHP Version: ${PHP_VERSION}"
+
 # 2. Setup MySQL database
 echo "🗄️ Step 2/6: Initializing MariaDB for Pterodactyl..."
 mysql -e "CREATE DATABASE IF NOT EXISTS panel;"
@@ -40,7 +44,7 @@ systemctl restart mariadb
 
 # 3. Download & Unpack Pterodactyl Panel Archive from VPS 1
 echo "🚀 Step 3/6: Cloning Pterodactyl Panel, Extensions & Database from VPS 1..."
-mkdir -p /var/www/pterodactyl
+mkdir -p /var/www/pterodactyl/storage /var/www/pterodactyl/bootstrap/cache /var/www/pterodactyl/public
 
 echo "Downloading Panel bundle from Primary VPS (${PEER_IP})..."
 curl -fsSL "http://${PEER_IP}:4000/api/sync/clone-bundle?secret=${SECRET}" -o /tmp/ptero_bundle.tar.gz || true
@@ -50,7 +54,6 @@ if [ -f /tmp/ptero_bundle.tar.gz ]; then
   echo "Panel files successfully extracted."
 else
   echo "⚠️ Warning: Automated bundle download over HTTP failed. Creating placeholder structure..."
-  mkdir -p /var/www/pterodactyl/public
 fi
 
 # 4. Import Database Dump if present
@@ -62,7 +65,7 @@ fi
 
 # 5. Configure Nginx Virtual Host
 echo "🌐 Step 4/6: Configuring Nginx web server..."
-cat << 'EOF' > /etc/nginx/sites-available/pterodactyl.conf
+cat << EOF > /etc/nginx/sites-available/pterodactyl.conf
 server {
     listen 80 default_server;
     server_name _;
@@ -71,7 +74,7 @@ server {
     charset utf-8;
 
     location / {
-        try_files $uri $uri/ /index.php?$query_string;
+        try_files \$uri \$uri/ /index.php?\$query_string;
     }
 
     location = /favicon.ico { access_log off; log_not_found off; }
@@ -87,10 +90,10 @@ server {
 
     location ~ \.php$ {
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
-        fastcgi_pass unix:/run/php/php8.2-fpm.sock;
+        fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
         fastcgi_index index.php;
         include fastcgi_params;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
         fastcgi_param HTTP_PROXY "";
         fastcgi_intercept_errors off;
         fastcgi_buffer_size 16k;
@@ -108,7 +111,7 @@ EOF
 
 ln -sf /etc/nginx/sites-available/pterodactyl.conf /etc/nginx/sites-enabled/pterodactyl.conf
 rm -f /etc/nginx/sites-enabled/default
-systemctl restart nginx php8.2-fpm || true
+systemctl restart nginx "php${PHP_VERSION}-fpm" || true
 
 # 6. Permissions & Queue Worker
 echo "🔐 Step 5/6: Setting file permissions and queue worker..."

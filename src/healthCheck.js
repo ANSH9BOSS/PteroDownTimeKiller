@@ -108,13 +108,48 @@ function setupApiRoutes(app) {
     return res.json({ status: 'executed', action });
   });
 
-  // 8. Discord Webhook Command Trigger API
-  app.post('/api/webhook/command', async (req, res) => {
-    const { command } = req.body;
-    if (!command) return res.status(400).json({ error: 'Command missing' });
+  // 9. Clone Bundle Downloader for Zero-Install Secondary Node
+  app.get('/api/sync/clone-bundle', authMiddleware, async (req, res) => {
+    const { exec } = require('child_process');
+    const path = require('path');
+    const fs = require('fs-extra');
+    const util = require('util');
+    const execAsync = util.promisify(exec);
+    
+    const cfg = getConfig();
+    const db = cfg.database || {};
+    const bundlePath = '/tmp/ptero_bundle.tar.gz';
+    const dbDumpPath = '/var/www/pterodactyl/database_dump.sql';
 
-    await handleDiscordCommand(command);
-    return res.json({ status: 'command_dispatched', command });
+    logger.info('Preparing Pterodactyl clone bundle for Secondary VPS...');
+
+    try {
+      // Dump database inside Pterodactyl directory so it gets tarred up
+      const dumpCmd = `mysqldump -h "${db.host || '127.0.0.1'}" -P "${db.port || 3306}" -u "${db.user || 'pterodactyl'}" -p"${db.pass || ''}" "${db.name || 'panel'}" > "${dbDumpPath}"`;
+      await execAsync(dumpCmd);
+
+      // Create tarball
+      const tarCmd = `tar -czf "${bundlePath}" -C /var/www/pterodactyl . --exclude="node_modules" --exclude="storage/logs/*" --exclude="storage/framework/cache/*" --exclude="storage/framework/views/*" --exclude="storage/framework/sessions/*"`;
+      await execAsync(tarCmd);
+
+      // Send file
+      res.download(bundlePath, 'ptero_bundle.tar.gz', async (err) => {
+        // Clean up files in background
+        await fs.remove(dbDumpPath).catch(() => {});
+        await fs.remove(bundlePath).catch(() => {});
+        
+        if (err) {
+          logger.error(`Error sending clone bundle to peer: ${err.message}`);
+        } else {
+          logger.info('Pterodactyl clone bundle successfully sent to peer VPS.');
+        }
+      });
+    } catch (err) {
+      logger.error(`Failed to create clone bundle: ${err.message}`);
+      await fs.remove(dbDumpPath).catch(() => {});
+      await fs.remove(bundlePath).catch(() => {});
+      res.status(500).json({ error: `Failed to compile clone bundle: ${err.message}` });
+    }
   });
 }
 
