@@ -5,11 +5,11 @@ const { createSnapshot, listSnapshots } = require('./snapshotEngine');
 const { performGDriveBackup } = require('./gdrive');
 const { sendDiscordWebhook } = require('./webhooks');
 
-async function handleDiscordCommand(commandStr, args = []) {
+async function handleWebhookCommand(commandStr, args = []) {
   const cfg = getConfig();
   const cmd = commandStr.toLowerCase().trim();
 
-  logger.info(`Processing Discord Command: ${cmd}`);
+  logger.info(`Processing Webhook Command: ${cmd}`);
 
   switch (cmd) {
     case 'status':
@@ -34,10 +34,10 @@ async function handleDiscordCommand(commandStr, args = []) {
     case 'snapshot create':
     case '!ptero snapshot create':
     case '/snapshot create': {
-      const res = await createSnapshot('discord_trigger');
+      const res = await createSnapshot('webhook_trigger');
       if (res.success) {
         return sendDiscordWebhook(
-          '📸 SNAPSHOT CREATED VIA DISCORD',
+          '📸 SNAPSHOT CREATED',
           `Snapshot **${res.snapshotName}** created successfully. Size: **${res.fileSize}**`,
           0x8b5cf6
         );
@@ -72,7 +72,7 @@ async function handleDiscordCommand(commandStr, args = []) {
     case '/sync-now': {
       return sendDiscordWebhook(
         '🔄 MANUAL SYNC TRIGGERED',
-        `Re-synchronization cycle initiated by Discord admin command.`,
+        `Re-synchronization cycle initiated by admin command.`,
         0x06b6d4
       );
     }
@@ -103,8 +103,8 @@ async function handleDiscordCommand(commandStr, args = []) {
 
     default: {
       return sendDiscordWebhook(
-        '❓ UNKNOWN DISCORD COMMAND',
-        `Available Discord Commands:\n• \`!ptero status\`\n• \`!ptero verify\`\n• \`!ptero snapshot create\`\n• \`!ptero snapshot list\`\n• \`!ptero gdrive backup\`\n• \`!ptero sync-now\``,
+        '❓ UNKNOWN COMMAND',
+        `Available Commands:\n• \`status\`\n• \`verify\`\n• \`snapshot create\`\n• \`snapshot list\`\n• \`gdrive backup\`\n• \`sync-now\``,
         0xf97316
       );
     }
@@ -112,5 +112,5 @@ async function handleDiscordCommand(commandStr, args = []) {
 }
 
 module.exports = {
-  handleDiscordCommand
+  handleWebhookCommand
 };

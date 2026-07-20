@@ -4,7 +4,7 @@ const { getConfig } = require('./config');
 const { handleIncomingFile } = require('./fileSync');
 const { applyIncomingDbChange, getChangesSince } = require('./dbSync');
 const { getDashboardHtml } = require('./dashboard');
-const { handleDiscordCommand } = require('./discordBot');
+const { handleDiscordCommand } = require('./webhookCommands');
 const { createSnapshot } = require('./snapshotEngine');
 const { performGDriveBackup } = require('./gdrive');
 
@@ -103,7 +103,7 @@ function setupApiRoutes(app) {
     const { action } = req.body;
     if (action === 'snapshot-create') await createSnapshot('web_ui');
     if (action === 'gdrive-backup') await performGDriveBackup();
-    if (action === 'sync-now') await handleDiscordCommand('sync-now');
+    if (action === 'sync-now') await handleWebhookCommand('sync-now');
 
     return res.json({ status: 'executed', action });
   });
@@ -241,6 +241,15 @@ function setupApiRoutes(app) {
     }
 
     return res.status(200).json(result);
+  });
+
+  // 11. Discord Webhook Command Trigger API
+  app.post('/api/webhook/command', async (req, res) => {
+    const { command } = req.body;
+    if (!command) return res.status(400).json({ error: 'Command missing' });
+
+    await handleWebhookCommand(command);
+    return res.json({ status: 'command_dispatched', command });
   });
 }
 

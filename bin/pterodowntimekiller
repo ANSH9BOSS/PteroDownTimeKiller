@@ -6,7 +6,7 @@ const fs = require('fs-extra');
 const { getConfig } = require('../src/config');
 const { createSnapshot, listSnapshots } = require('../src/snapshotEngine');
 const { performGDriveBackup } = require('../src/gdrive');
-const { handleDiscordCommand } = require('../src/discordBot');
+const { handleWebhookCommand } = require('../src/webhookCommands');
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -70,7 +70,7 @@ async function main() {
 
     case 'sync-now': {
       console.log('Triggering manual re-sync cycle...');
-      await handleDiscordCommand('sync-now');
+      await handleWebhookCommand('sync-now');
       console.log('✅ Re-sync triggered.');
       break;
     }
@@ -78,7 +78,7 @@ async function main() {
     case 'webhook': {
       if (subCommand === 'test') {
         console.log('Sending test Discord Webhook notification...');
-        await handleDiscordCommand('status');
+        await handleWebhookCommand('status');
         console.log('✅ Test webhook sent.');
       } else if (subCommand === 'send') {
         const msg = args.slice(2).join(' ');
