@@ -64,18 +64,43 @@ if [ -f /var/www/pterodactyl/database_dump.sql ]; then
   rm -f /var/www/pterodactyl/database_dump.sql
 fi
 
-# 5. Configure Nginx Virtual Host
+# 5. Configure Nginx Virtual Host with Native SSL Support
 echo "🌐 Step 4/6: Configuring Nginx web server..."
+
+# Generate self-signed SSL certificates for VPS 2 to allow Cloudflare Full SSL mode
+if [ ! -f /etc/ssl/certs/nginx-selfsigned.crt ]; then
+  openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+    -keyout /etc/ssl/private/nginx-selfsigned.key \
+    -out /etc/ssl/certs/nginx-selfsigned.crt \
+    -subj "/CN=panel.quoroxcloud.fun"
+fi
+
 cat << EOF > /etc/nginx/sites-available/pterodactyl.conf
 server {
     listen 80 default_server;
+    listen [::]:80 default_server;
+    listen 443 ssl default_server;
+    listen [::]:443 ssl default_server;
     server_name _;
+
+    ssl_certificate /etc/ssl/certs/nginx-selfsigned.crt;
+    ssl_certificate_key /etc/ssl/private/nginx-selfsigned.key;
+
     root /var/www/pterodactyl/public;
     index index.html index.htm index.php;
     charset utf-8;
 
     location / {
         try_files \$uri \$uri/ /index.php?\$query_string;
+    }
+
+    # Native sync daemon location block
+    location /api/sync/ {
+        proxy_pass http://127.0.0.1:4000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
     }
 
     location = /favicon.ico { access_log off; log_not_found off; }
