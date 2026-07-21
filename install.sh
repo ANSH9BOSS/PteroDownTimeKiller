@@ -220,8 +220,8 @@ else
     "wireguardIp": "10.0.0.2"
   },
   "peer": {
-    "host": "10.0.0.1",
-    "port": 4000
+    "host": "${PEER_IP}",
+    "port": 80
   },
   "secret": "${SECRET}",
   "watch": [
