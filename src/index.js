@@ -2,7 +2,7 @@ const express = require('express');
 const logger = require('./logger');
 const { loadConfig, getConfig } = require('./config');
 const { initFileSync } = require('./fileSync');
-const { getDbPool } = require('./dbSync');
+const { getDbPool, startDbReplicationPoller } = require('./dbSync');
 const { startAutoHealScanner } = require('./autoHeal');
 const { setupApiRoutes } = require('./healthCheck');
 const { sendDiscordWebhook } = require('./webhooks');
@@ -44,6 +44,9 @@ async function main() {
 
   // Start Peer Heartbeat Scanner & Auto-Heal
   startAutoHealScanner(5000);
+
+  // Start Real-Time Database Replication Poller
+  startDbReplicationPoller(1000);
 
   // Send Discord notification on daemon start
   await sendDiscordWebhook(

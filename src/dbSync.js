@@ -73,13 +73,17 @@ async function sendDbChangeToPeer(table, action, recordData) {
 
 async function applyIncomingDbChange(table, action, recordData) {
   const p = getDbPool();
+  const connection = await p.getConnection();
   try {
+    // Disable logging for this connection session to prevent infinite replication loops
+    await connection.query('SET @pterodowntimekiller_sync = 1');
+
     if (action === 'DELETE') {
       const keys = Object.keys(recordData);
       if (keys.length === 0) return { success: false, error: 'No key provided for delete' };
       const primaryKey = keys.includes('id') ? 'id' : keys[0];
       const val = recordData[primaryKey];
-      await p.query(`DELETE FROM \`${table}\` WHERE \`${primaryKey}\` = ?`, [val]);
+      await connection.query(`DELETE FROM \`${table}\` WHERE \`${primaryKey}\` = ?`, [val]);
       logger.info(`Incoming DB Sync: Deleted record from ${table} where ${primaryKey} = ${val}`);
     } else {
       // REPLACE INTO for upsert
@@ -89,13 +93,15 @@ async function applyIncomingDbChange(table, action, recordData) {
       const values = keys.map((k) => recordData[k]);
 
       const sql = `REPLACE INTO \`${table}\` (${cols}) VALUES (${placeholders})`;
-      await p.query(sql, values);
+      await connection.query(sql, values);
       logger.info(`Incoming DB Sync: Applied UPSERT to table ${table}`);
     }
     return { success: true };
   } catch (err) {
     logger.error(`Error applying incoming DB change to ${table}: ${err.message}`);
     return { success: false, error: err.message };
+  } finally {
+    connection.release();
   }
 }
 
@@ -104,10 +110,44 @@ function getChangesSince(timestamp) {
   return changeLog.filter((c) => c.timestamp > since);
 }
 
+let isPolling = false;
+function startDbReplicationPoller(intervalMs = 1000) {
+  logger.info(`Starting real-time database replication poller (every ${intervalMs}ms)...`);
+  setInterval(async () => {
+    if (isPolling) return;
+    isPolling = true;
+
+    try {
+      const p = getDbPool();
+      // Fetch oldest unprocessed change log rows
+      const [rows] = await p.query('SELECT * FROM pterodowntimekiller_changelog ORDER BY id LIMIT 50');
+      if (rows.length === 0) {
+        isPolling = false;
+        return;
+      }
+
+      for (const row of rows) {
+        const recordData = JSON.parse(row.record_data);
+        await sendDbChangeToPeer(row.table_name, row.action, recordData);
+        // Delete processed log entry
+        await p.query('DELETE FROM pterodowntimekiller_changelog WHERE id = ?', [row.id]);
+      }
+    } catch (err) {
+      // Avoid spamming logs if tables are not set up yet
+      if (!err.message.includes('Table') && !err.message.includes('exist')) {
+        logger.error(`Database replication poller error: ${err.message}`);
+      }
+    } finally {
+      isPolling = false;
+    }
+  }, intervalMs);
+}
+
 module.exports = {
   getDbPool,
   recordChange,
   sendDbChangeToPeer,
   applyIncomingDbChange,
-  getChangesSince
+  getChangesSince,
+  startDbReplicationPoller
 };
