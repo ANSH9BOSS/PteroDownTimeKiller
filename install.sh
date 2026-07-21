@@ -162,7 +162,8 @@ EOF
 
   systemctl daemon-reload
   node /opt/pterodowntimekiller/scripts/setup-db-triggers.js || true
-  systemctl enable --now pterodowntimekiller || true
+  systemctl enable pterodowntimekiller || true
+  systemctl restart pterodowntimekiller || true
 
   # Extract Primary Domain Name
   PRIMARY_DOMAIN=""
@@ -268,7 +269,8 @@ EOF
   systemctl daemon-reload
   node /opt/pterodowntimekiller/scripts/nginx-patch.js || true
   node /opt/pterodowntimekiller/scripts/setup-db-triggers.js || true
-  systemctl enable --now pterodowntimekiller || true
+  systemctl enable pterodowntimekiller || true
+  systemctl restart pterodowntimekiller || true
 
   echo ""
   echo "====================================================================="
