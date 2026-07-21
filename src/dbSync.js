@@ -43,7 +43,7 @@ function recordChange(table, action, recordData) {
 
 async function sendDbChangeToPeer(table, action, recordData) {
   const cfg = getConfig();
-  if (!cfg.peer || !cfg.peer.host) return;
+  if (!cfg.peer || !cfg.peer.host) return false;
 
   const url = `http://${cfg.peer.host}:${cfg.peer.port}/api/sync/push-db`;
   try {
@@ -66,8 +66,10 @@ async function sendDbChangeToPeer(table, action, recordData) {
       }
     );
     logger.debug(`DB change pushed to peer [${table}:${action}]`);
+    return true;
   } catch (err) {
     logger.warn(`Failed to push DB change to peer [${table}]: ${err.message}`);
+    return false;
   }
 }
 
@@ -105,7 +107,21 @@ async function applyIncomingDbChange(table, action, recordData) {
   }
 }
 
-function getChangesSince(timestamp) {
+async function getChangesSince(timestamp) {
+  try {
+    const p = getDbPool();
+    // Return all unprocessed changes
+    const [rows] = await p.query('SELECT * FROM pterodowntimekiller_changelog ORDER BY id');
+    if (rows.length > 0) {
+      return rows.map(r => ({
+        table: r.table_name,
+        action: r.action,
+        recordData: JSON.parse(r.record_data)
+      }));
+    }
+  } catch (e) {
+    // Fallback to in-memory log
+  }
   const since = parseInt(timestamp, 10) || 0;
   return changeLog.filter((c) => c.timestamp > since);
 }
@@ -128,9 +144,11 @@ function startDbReplicationPoller(intervalMs = 1000) {
 
       for (const row of rows) {
         const recordData = JSON.parse(row.record_data);
-        await sendDbChangeToPeer(row.table_name, row.action, recordData);
-        // Delete processed log entry
-        await p.query('DELETE FROM pterodowntimekiller_changelog WHERE id = ?', [row.id]);
+        const pushed = await sendDbChangeToPeer(row.table_name, row.action, recordData);
+        if (pushed) {
+          // Delete processed log entry
+          await p.query('DELETE FROM pterodowntimekiller_changelog WHERE id = ?', [row.id]);
+        }
       }
     } catch (err) {
       // Avoid spamming logs if tables are not set up yet

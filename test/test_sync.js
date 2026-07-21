@@ -16,7 +16,7 @@ async function runTests() {
   console.log('Test 2: Database Delta Recording');
   const now = Date.now() - 1000;
   recordChange('servers', 'UPDATE', { id: 1, name: 'Test Server', memory: 2048 });
-  const deltas = getChangesSince(now);
+  const deltas = await getChangesSince(now);
   assert.strictEqual(deltas.length >= 1, true, 'Delta log should contain recorded change');
   assert.strictEqual(deltas[0].table, 'servers', 'Delta table should match');
   console.log('  ✅ Database delta change recorded correctly.');

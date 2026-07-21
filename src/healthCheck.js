@@ -70,9 +70,9 @@ function setupApiRoutes(app) {
   });
 
   // 4. Auto-Heal State Sync Reader
-  app.get('/api/sync/pull', authMiddleware, (req, res) => {
+  app.get('/api/sync/pull', authMiddleware, async (req, res) => {
     const { since } = req.query;
-    const dbDeltas = getChangesSince(since);
+    const dbDeltas = await getChangesSince(since);
 
     return res.status(200).json({
       timestamp: Date.now(),
